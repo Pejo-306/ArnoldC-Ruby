@@ -39,19 +39,6 @@ RSpec.describe ArnoldCPM do
         end
     end
 
-    it "raises an error if undefined variables are used" do
-        code = Proc.new do
-            its_showtime
-                talk_to_the_hand _var
-            you_have_been_terminated 
-        end
-
-        expect { ArnoldCPM.totally_recall(&code) }.to raise_error(
-            ArnoldCPM::UndefinedVariable,
-            "Undefined local variable _var (in ArnoldC code)."
-        )
-    end
-
     context "supports basic arithmetics between numbers by implementing the following functionality:" do
         it "supports addition" do
             expect_printed 22
