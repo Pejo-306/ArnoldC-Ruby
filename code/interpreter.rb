@@ -17,8 +17,8 @@ class ArnoldCStatement
 
     def initialize(name, scope, *args)
         @name = name
-        @scope = scope
         @args = args
+        @scope = scope
         @code = nil
     end
 
@@ -33,7 +33,6 @@ end
 
 class ArnoldCConditional
     def initialize
-
     end
 end
 
@@ -66,6 +65,7 @@ module ArnoldCPM
         @@buffer = nil  # used for temporary storage of variables
 
         # Function related
+
         def its_showtime
             main = ArnoldCFunction.new(:main)
             @@current_scope.push main
@@ -76,8 +76,9 @@ module ArnoldCPM
         end
 
         # Statements
+
         def talk_to_the_hand(object)
-            scope = @@current_scope.map { |expression| expression }
+            scope = get_scope_copy
             statement = ArnoldCStatement.new(__method__, scope, object)
             statement.code do
                 printer.print interpret_expression(object, statement.scope), "\n"
@@ -86,7 +87,7 @@ module ArnoldCPM
         end
 
         def get_to_the_chopper(name)
-            scope = @@current_scope.map { |expression| expression }
+            scope = get_scope_copy
             statement = ArnoldCStatement.new(__method__, scope, name)
             statement.code do
                 variable = ArnoldCVariable.new(statement.args.first)
@@ -96,7 +97,7 @@ module ArnoldCPM
         end
 
         def here_is_my_invitation(object)
-            scope = @@current_scope.map { |expression| expression }
+            scope = get_scope_copy
             statement = ArnoldCStatement.new(__method__, scope, object)
             statement.code do
                 @@buffer.value = interpret_expression(object, statement.scope)
@@ -105,7 +106,7 @@ module ArnoldCPM
         end
 
         def enough_talk
-            scope = @@current_scope.map { |expression| expression }
+            scope = get_scope_copy
             statement = ArnoldCStatement.new(__method__, scope)
             statement.code do
                 func = get_function(statement.scope)
@@ -115,12 +116,127 @@ module ArnoldCPM
             @@current_scope.last.body.push statement
         end
 
+        # Arithmetics
+
+        def get_up(object)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, object)
+            statement.code do
+                @@buffer.value += interpret_expression(object, scope)
+            end
+            @@current_scope.last.body.push statement
+        end
+
+        def get_down(object)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, object)
+            statement.code do
+                @@buffer.value -= interpret_expression(object, scope)
+            end
+            @@current_scope.last.body.push statement
+        end
+
+        def youre_fired(object)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, object)
+            statement.code do
+                @@buffer.value *= interpret_expression(object, scope)
+            end
+            @@current_scope.last.body.push statement
+        end
+
+        def he_had_to_split(object)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, object)
+            statement.code do
+                @@buffer.value /= interpret_expression(object, scope)
+            end
+            @@current_scope.last.body.push statement
+        end
+
+        def i_let_him_go(object)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, object)
+            statement.code do
+                @@buffer.value %= interpret_expression(object, scope)
+            end
+            @@current_scope.last.body.push statement
+        end
+
+        # Logical constants
+
+        def no_problemo() 1 end
+        def i_lied() 0 end
+        
+        # Logical operations
+
+        def consider_that_a_divorce(object)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, object)
+            statement.code do
+                if from_arnoldc_bool(@@buffer.value) || 
+                    from_arnoldc_bool(interpret_expression(object, scope))
+                    @@buffer.value = no_problemo
+                else
+                    @@buffer.value = i_lied
+                end
+            end
+            @@current_scope.last.body.push statement 
+        end
+
+        def knock_knock(object)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, object)
+            statement.code do
+                if from_arnoldc_bool(@@buffer.value) && 
+                    from_arnoldc_bool(interpret_expression(object, scope))
+                    @@buffer.value = no_problemo
+                else
+                    @@buffer.value = i_lied
+                end
+            end
+            @@current_scope.last.body.push statement 
+        end
+
+        # Comparisons 
+
+        def let_off_some_steam_bennet(object)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, object)
+            statement.code do
+                if @@buffer.value > interpret_expression(object, scope)
+                    @@buffer.value = no_problemo
+                else
+                    @@buffer.value = i_lied
+                end
+            end
+            @@current_scope.last.body.push statement 
+        end
+
+        def you_are_not_you_you_are_me(object)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, object)
+            statement.code do
+                if @@buffer.value == interpret_expression(object, scope)
+                    @@buffer.value = no_problemo
+                else
+                    @@buffer.value = i_lied
+                end
+            end
+            @@current_scope.last.body.push statement 
+        end
+
         # Conditionals
 
         private
         
-        def no_problemo() 1 end
-        def i_lied() 0 end
+        def from_arnoldc_bool(arnoldc_bool)
+            if arnoldc_bool == 0 then false else true end
+        end
+
+        def get_scope_copy
+            @@current_scope.map { |expression| expression }
+        end
 
         def interpret_expression(object, scope) 
             if object.is_a? Symbol  # i.e. object is a variable name
@@ -145,6 +261,7 @@ module ArnoldCPM
 
         def reset_interpreter
             @@current_scope = []
+            @@buffer = nil
         end
     end
 
@@ -185,11 +302,14 @@ ArnoldCPM.printer = Kernel
 ArnoldCPM.totally_recall do
     its_showtime
         get_to_the_chopper _var
-            here_is_my_invitation 42
+            here_is_my_invitation 42 
         enough_talk
+
         get_to_the_chopper _other
             here_is_my_invitation _var
+            knock_knock no_problemo 
         enough_talk
+
         talk_to_the_hand _var
         talk_to_the_hand _other
     you_have_been_terminated
