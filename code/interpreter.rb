@@ -13,9 +13,11 @@ class ArnoldCVariable
 end
 
 class ArnoldCStatement
-    attr_reader :scope, :args
+    attr_reader :name, :scope, :args
 
     def initialize(name, scope, *args)
+        # @name and @args are redundant, however they provide
+        # information about the statement to the programmer
         @name = name
         @args = args
         @scope = scope
@@ -32,7 +34,45 @@ class ArnoldCStatement
 end
 
 class ArnoldCConditional
-    def initialize
+    attr_accessor :body
+
+    def initialize(condition, scope)
+        @condition = condition
+        @body = []
+        @if_body = []
+        @else_body = []
+        @scope = scope
+    end 
+
+    def switch_to_else
+        @if_body = @body[0..@body.length-1]
+        @body = []
+    end 
+
+    def end_if
+        if @if_body.empty?  # i.e. an else clause is not present
+            @if_body = @body[0..@body.length-1]
+        else
+            @else_body = @body[0..@body.length-1] 
+        end
+        @body = []
+    end
+
+    def evaluate
+        # transform @condition into a ruby bool
+        condition = ArnoldCPM.send :interpret_expression, @condition, @scope
+        condition = ArnoldCPM.send :from_arnoldc_bool, condition
+
+        # evaluate condition
+        if condition 
+            @if_body.each do |expression|
+                expression.evaluate
+            end
+        else
+            @else_body.each do |expression|
+                expression.evaluate
+            end
+        end
     end
 end
 
@@ -53,8 +93,8 @@ class ArnoldCFunction
     end
 
     def execute(*values)
-        @body.each do |statement|
-            statement.evaluate
+        @body.each do |expression|
+            expression.evaluate
         end
     end
 end
@@ -227,9 +267,23 @@ module ArnoldCPM
         end
 
         # Conditionals
+        def because_im_going_to_say_please(condition)
+            conditional = ArnoldCConditional.new(condition, get_scope_copy)
+            @@current_scope.push conditional
+        end
 
+        def bull_shit
+            @@current_scope.last.switch_to_else
+        end
+
+        def you_have_no_respect_for_logic
+            conditional = @@current_scope.pop
+            conditional.end_if
+            @@current_scope.last.body.push conditional
+        end
+ 
         private
-        
+
         def from_arnoldc_bool(arnoldc_bool)
             if arnoldc_bool == 0 then false else true end
         end
@@ -264,10 +318,9 @@ module ArnoldCPM
             @@buffer = nil
         end
     end
-
-    private_constant :Interpreter
-
+    
     extend Interpreter
+    private_constant :Interpreter
 
     class << self
         @@functions = {}
@@ -302,16 +355,25 @@ ArnoldCPM.printer = Kernel
 ArnoldCPM.totally_recall do
     its_showtime
         get_to_the_chopper _var
-            here_is_my_invitation 42 
+            here_is_my_invitation 42
         enough_talk
 
         get_to_the_chopper _other
             here_is_my_invitation _var
-            knock_knock no_problemo 
+            knock_knock i_lied
         enough_talk
 
-        talk_to_the_hand _var
-        talk_to_the_hand _other
+        because_im_going_to_say_please _other
+            because_im_going_to_say_please _var
+                talk_to_the_hand 55
+            you_have_no_respect_for_logic
+        bull_shit
+            because_im_going_to_say_please _var
+                talk_to_the_hand 90
+            bull_shit
+                talk_to_the_hand 22
+            you_have_no_respect_for_logic
+        you_have_no_respect_for_logic
     you_have_been_terminated
 end
 
