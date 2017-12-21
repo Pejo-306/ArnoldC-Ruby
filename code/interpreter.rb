@@ -127,6 +127,7 @@ end
 module ArnoldCPM
     module Interpreter
         @@current_scope = []
+        @@statements = []
         @@buffer = nil  # used for temporary storage of variables
 
         # Function related expressions
@@ -159,209 +160,6 @@ module ArnoldCPM
             func_storage[func.name] = func
         end
 
-        # Statements
-
-        def talk_to_the_hand(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                printer.print interpret_expression(object, statement.scope), "\n"
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        def get_to_the_chopper(name)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, name)
-            statement.code do
-                variable = ArnoldCVariable.new(statement.args.first)
-                @@buffer = variable
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        def here_is_my_invitation(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                @@buffer.value = interpret_expression(object, statement.scope)
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        def enough_talk
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope)
-            statement.code do
-                func = get_function(statement.scope)
-                func.closure[@@buffer.name] = @@buffer
-                @@buffer = nil
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        def ill_be_back(object=nil)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object) 
-            statement.code do
-                func = get_function(statement.scope)
-                func.stop_execution
-                if func.should_return?
-                    func.return = interpret_expression(object, statement.scope)
-                end
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        def get_your_ass_to_mars(name)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, name)
-            statement.code do
-                variable = ArnoldCVariable.new(statement.args.first)
-                @@buffer = variable
-            end
-            @@current_scope.last.body.push statement 
-        end
-
-        def do_it_now(name, *args)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, name, *args)
-            statement.code do
-                called_func = self.class_variable_get(:@@functions)[name]
-
-                # store the variable, declared in get_your_ass_to_mars for later
-                result_var = @@buffer if called_func.should_return?
-                func_returns = if called_func.should_return? then true else false end
-
-                # call the function, identified via name
-                values = args.map do |object|
-                    interpret_expression(object, statement.scope)
-                end
-                called_func = self.class_variable_get(:@@functions)[name]
-                called_func.execute(*values) 
-
-                # save the result of the function execution to a variable
-                # if the function is non-void
-                if func_returns
-                    result_var.value = called_func.return_value
-                    func = get_function(statement.scope)
-                    func.closure[result_var.name] = result_var 
-                    @@buffer = nil
-                end
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        # Arithmetics
-
-        def get_up(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                @@buffer.value += interpret_expression(object, scope)
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        def get_down(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                @@buffer.value -= interpret_expression(object, scope)
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        def youre_fired(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                @@buffer.value *= interpret_expression(object, scope)
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        def he_had_to_split(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                @@buffer.value /= interpret_expression(object, scope)
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        def i_let_him_go(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                @@buffer.value %= interpret_expression(object, scope)
-            end
-            @@current_scope.last.body.push statement
-        end
-
-        # Logical constants
-
-        def no_problemo() 1 end
-        def i_lied() 0 end
-        
-        # Logical operations
-
-        def consider_that_a_divorce(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                if from_arnoldc_bool(@@buffer.value) || 
-                    from_arnoldc_bool(interpret_expression(object, scope))
-                    @@buffer.value = no_problemo
-                else
-                    @@buffer.value = i_lied
-                end
-            end
-            @@current_scope.last.body.push statement 
-        end
-
-        def knock_knock(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                if from_arnoldc_bool(@@buffer.value) && 
-                    from_arnoldc_bool(interpret_expression(object, scope))
-                    @@buffer.value = no_problemo
-                else
-                    @@buffer.value = i_lied
-                end
-            end
-            @@current_scope.last.body.push statement 
-        end
-
-        # Comparisons 
-
-        def let_off_some_steam_bennet(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                if @@buffer.value > interpret_expression(object, scope)
-                    @@buffer.value = no_problemo
-                else
-                    @@buffer.value = i_lied
-                end
-            end
-            @@current_scope.last.body.push statement 
-        end
-
-        def you_are_not_you_you_are_me(object)
-            scope = get_scope_copy
-            statement = ArnoldCStatement.new(__method__, scope, object)
-            statement.code do
-                if @@buffer.value == interpret_expression(object, scope)
-                    @@buffer.value = no_problemo
-                else
-                    @@buffer.value = i_lied
-                end
-            end
-            @@current_scope.last.body.push statement 
-        end
-
         # Conditionals
 
         def because_im_going_to_say_please(condition)
@@ -378,7 +176,154 @@ module ArnoldCPM
             conditional.end_if
             @@current_scope.last.body.push conditional
         end
- 
+
+        # Statements
+
+        def self.extended(base)
+            super(base)
+
+            interpreter = self
+            @@statements.each do |method_name|
+                # define a singleton method bound to ArnoldCPM for every
+                # method marked as a statement in ArnoldC
+                base.define_singleton_method method_name do |*args|
+                    # create a new ArnoldC statement
+                    statement = ArnoldCStatement.new(method_name, get_scope_copy, *args)
+                    # set the newly created statement's body to the Ruby code
+                    # defined in the corresponding module ArnoldCPM::Interpreter's
+                    # instance method 
+                    statement.code do
+                        bound_method = interpreter.instance_method(method_name).bind(self)
+                        bound_method.call(*args, statement: statement)
+                        bound_method.unbind()
+                    end
+                    # push the new statement to the innermost ArnoldC function's body
+                    @@current_scope.last.body.push statement
+                end
+            end
+        end
+
+        @@statements << def talk_to_the_hand(object, statement:)
+            printer.print interpret_expression(object, statement.scope), "\n"
+        end
+
+        @@statements << def get_to_the_chopper(name, statement:)
+            variable = ArnoldCVariable.new(statement.args.first)
+            @@buffer = variable
+        end
+
+        @@statements << def here_is_my_invitation(object, statement:)
+            @@buffer.value = interpret_expression(object, statement.scope)
+        end
+
+        @@statements << def enough_talk(statement:)
+            func = get_function(statement.scope)
+            func.closure[@@buffer.name] = @@buffer
+            @@buffer = nil
+        end
+
+        @@statements << def ill_be_back(object=nil, statement:)
+            func = get_function(statement.scope)
+            func.stop_execution
+            if func.should_return?
+                func.return = interpret_expression(object, statement.scope)
+            end
+        end
+
+        @@statements << def get_your_ass_to_mars(name, statement:)
+            variable = ArnoldCVariable.new(statement.args.first)
+            @@buffer = variable
+        end
+
+        @@statements << def do_it_now(name, *args, statement:)
+            called_func = self.class_variable_get(:@@functions)[name]
+
+            # store the variable, declared in get_your_ass_to_mars for later
+            result_var = @@buffer if called_func.should_return?
+            func_returns = if called_func.should_return? then true else false end
+
+            # call the function, identified via name
+            values = args.map do |object|
+                interpret_expression(object, statement.scope)
+            end
+            called_func = self.class_variable_get(:@@functions)[name]
+            called_func.execute(*values) 
+
+            # save the result of the function execution to a variable
+            # if the function is non-void
+            if func_returns
+                result_var.value = called_func.return_value
+                func = get_function(statement.scope)
+                func.closure[result_var.name] = result_var 
+                @@buffer = nil
+            end
+        end
+
+        # Arithmetics
+
+        @@statements << def get_up(object, statement:)
+            @@buffer.value += interpret_expression(object, statement.scope)
+        end
+
+        @@statements << def get_down(object, statement:)
+            @@buffer.value -= interpret_expression(object, statement.scope)
+        end
+
+        @@statements << def youre_fired(object, statement:)
+            @@buffer.value *= interpret_expression(object, statement.scope)
+        end
+
+        @@statements << def he_had_to_split(object, statement:)
+            @@buffer.value /= interpret_expression(object, statement.scope)
+        end
+
+        @@statements << def i_let_him_go(object, statement:)
+            @@buffer.value %= interpret_expression(object, statement.scope)
+        end
+
+        # Logical constants
+
+        def no_problemo() 1 end
+        def i_lied() 0 end
+        
+        # Logical operations
+
+        @@statements << def consider_that_a_divorce(object, statement:)
+            if from_arnoldc_bool(@@buffer.value) || 
+                from_arnoldc_bool(interpret_expression(object, statement.scope))
+                @@buffer.value = no_problemo
+            else
+                @@buffer.value = i_lied
+            end
+        end
+
+        @@statements << def knock_knock(object, statement:)
+            if from_arnoldc_bool(@@buffer.value) && 
+                from_arnoldc_bool(interpret_expression(object, statement.scope))
+                @@buffer.value = no_problemo
+            else
+                @@buffer.value = i_lied
+            end
+        end
+
+        # Comparisons 
+
+        @@statements << def let_off_some_steam_bennet(object, statement:)
+            if @@buffer.value > interpret_expression(object, statement.scope)
+                @@buffer.value = no_problemo
+            else
+                @@buffer.value = i_lied
+            end
+        end
+
+        @@statements << def you_are_not_you_you_are_me(object, statement:)
+            if @@buffer.value == interpret_expression(object, statement.scope)
+                @@buffer.value = no_problemo
+            else
+                @@buffer.value = i_lied
+            end
+        end
+
         private
 
         def from_arnoldc_bool(arnoldc_bool)
@@ -451,29 +396,3 @@ module ArnoldCPM
     end
 end
 
-ArnoldCPM.printer = Kernel
-ArnoldCPM.totally_recall do
-    listen_to_me_very_carefully _add
-    i_need_your_clothes_your_boots_and_your_motorcycle _x
-    i_need_your_clothes_your_boots_and_your_motorcycle _y
-    give_these_people_air
-        get_to_the_chopper _result
-            here_is_my_invitation _x
-            get_up _y
-        enough_talk
-        ill_be_back _result
-    hasta_la_vista_baby
-
-    its_showtime
-        get_to_the_chopper _x
-            here_is_my_invitation 42
-        enough_talk
-        get_to_the_chopper _y
-            here_is_my_invitation 28
-        enough_talk
-
-        get_your_ass_to_mars _result
-        do_it_now _add, _x, _y
-        talk_to_the_hand _result
-    you_have_been_terminated
-end
