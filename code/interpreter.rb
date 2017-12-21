@@ -13,7 +13,7 @@ class ArnoldCVariable
 end
 
 class ArnoldCStatement
-    attr_reader :name, :scope, :args
+    attr_reader :name, :args, :scope
 
     def initialize(name, scope, *args)
         # @name and @args are redundant, however they provide
@@ -77,25 +77,50 @@ class ArnoldCConditional
 end
 
 class ArnoldCFunction
-    attr_reader :name
-    attr_accessor :body, :parameters, :closure, :return
+    attr_reader :name, :parameter_values
+    attr_writer :return
+    attr_accessor :body, :parameters, :closure
 
     def initialize(name)
         @name = name
         @body = []
-        @parameters = []
+        @parameters = []  # set only when the function is declared
+        @parameter_values = {}  # altered everytime the function is called
         @closure = {}
         @return = false
+        @should_stop = false
     end
     
     def should_return?
         @return
     end
 
+    def return_value
+        @return
+    end
+
+    def stop_execution
+        @should_stop = true
+    end
+
     def execute(*values)
+        # @parameter_values is a hash whose keys are parameter names
+        # and whose parameter values are the values passed when calling
+        # the function
+        @parameter_values = @parameters.zip(values).to_h
         @body.each do |expression|
+            break if @should_stop
             expression.evaluate
         end
+        @parameter_values = {} 
+        @should_stop = false
+    end
+ 
+    def to_s
+        params = ""
+        @parameters.each { |name| params.concat(name.to_s + ", ") }
+        params.slice!(-2..-1)
+        "ArnoldCFunction: #{@name}(#{params})"
     end
 end
 
@@ -104,15 +129,34 @@ module ArnoldCPM
         @@current_scope = []
         @@buffer = nil  # used for temporary storage of variables
 
-        # Function related
+        # Function related expressions
 
         def its_showtime
-            main = ArnoldCFunction.new(:main)
-            @@current_scope.push main
+            @@current_scope.push ArnoldCFunction.new(:main)
         end
 
         def you_have_been_terminated
-            define_function @@current_scope.pop
+            func = @@current_scope.pop
+            func_storage = self.class_variable_get(:@@functions)
+            func_storage[func.name] = func
+        end
+
+        def listen_to_me_very_carefully(name)
+            @@current_scope.push ArnoldCFunction.new(name)
+        end
+
+        def i_need_your_clothes_your_boots_and_your_motorcycle(name)
+            @@current_scope.last.parameters.push name
+        end
+
+        def give_these_people_air
+            @@current_scope.last.return = true
+        end
+
+        def hasta_la_vista_baby
+            func = @@current_scope.pop
+            func_storage = self.class_variable_get(:@@functions)
+            func_storage[func.name] = func
         end
 
         # Statements
@@ -152,6 +196,58 @@ module ArnoldCPM
                 func = get_function(statement.scope)
                 func.closure[@@buffer.name] = @@buffer
                 @@buffer = nil
+            end
+            @@current_scope.last.body.push statement
+        end
+
+        def ill_be_back(object=nil)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, object) 
+            statement.code do
+                func = get_function(statement.scope)
+                func.stop_execution
+                if func.should_return?
+                    func.return = interpret_expression(object, statement.scope)
+                end
+            end
+            @@current_scope.last.body.push statement
+        end
+
+        def get_your_ass_to_mars(name)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, name)
+            statement.code do
+                variable = ArnoldCVariable.new(statement.args.first)
+                @@buffer = variable
+            end
+            @@current_scope.last.body.push statement 
+        end
+
+        def do_it_now(name, *args)
+            scope = get_scope_copy
+            statement = ArnoldCStatement.new(__method__, scope, name, *args)
+            statement.code do
+                called_func = self.class_variable_get(:@@functions)[name]
+
+                # store the variable, declared in get_your_ass_to_mars for later
+                result_var = @@buffer if called_func.should_return?
+                func_returns = if called_func.should_return? then true else false end
+
+                # call the function, identified via name
+                values = args.map do |object|
+                    interpret_expression(object, statement.scope)
+                end
+                called_func = self.class_variable_get(:@@functions)[name]
+                called_func.execute(*values) 
+
+                # save the result of the function execution to a variable
+                # if the function is non-void
+                if func_returns
+                    result_var.value = called_func.return_value
+                    func = get_function(statement.scope)
+                    func.closure[result_var.name] = result_var 
+                    @@buffer = nil
+                end
             end
             @@current_scope.last.body.push statement
         end
@@ -267,6 +363,7 @@ module ArnoldCPM
         end
 
         # Conditionals
+
         def because_im_going_to_say_please(condition)
             conditional = ArnoldCConditional.new(condition, get_scope_copy)
             @@current_scope.push conditional
@@ -295,15 +392,18 @@ module ArnoldCPM
         def interpret_expression(object, scope) 
             if object.is_a? Symbol  # i.e. object is a variable name
                 func = get_function(scope)
-                func.closure[object].value    
+                if func.parameters.include? object
+                    # first, check if the variable requested
+                    # is in the function's parameters
+                    func.parameter_values[object]
+                else
+                    # otherwise, the requested variable
+                    # must be in the function's closure
+                    func.closure[object].value    
+                end
             else
                 object  # object is a literal value
             end
-        end
-
-        def define_function(func)
-            funcs = self.class_variable_get(:@@functions)
-            funcs[func.name] = func
         end
 
         def get_function(scope)
@@ -353,27 +453,27 @@ end
 
 ArnoldCPM.printer = Kernel
 ArnoldCPM.totally_recall do
+    listen_to_me_very_carefully _add
+    i_need_your_clothes_your_boots_and_your_motorcycle _x
+    i_need_your_clothes_your_boots_and_your_motorcycle _y
+    give_these_people_air
+        get_to_the_chopper _result
+            here_is_my_invitation _x
+            get_up _y
+        enough_talk
+        ill_be_back _result
+    hasta_la_vista_baby
+
     its_showtime
-        get_to_the_chopper _var
+        get_to_the_chopper _x
             here_is_my_invitation 42
         enough_talk
-
-        get_to_the_chopper _other
-            here_is_my_invitation _var
-            knock_knock i_lied
+        get_to_the_chopper _y
+            here_is_my_invitation 28
         enough_talk
 
-        because_im_going_to_say_please _other
-            because_im_going_to_say_please _var
-                talk_to_the_hand 55
-            you_have_no_respect_for_logic
-        bull_shit
-            because_im_going_to_say_please _var
-                talk_to_the_hand 90
-            bull_shit
-                talk_to_the_hand 22
-            you_have_no_respect_for_logic
-        you_have_no_respect_for_logic
+        get_your_ass_to_mars _result
+        do_it_now _add, _x, _y
+        talk_to_the_hand _result
     you_have_been_terminated
 end
-
