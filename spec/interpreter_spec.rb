@@ -39,80 +39,80 @@ RSpec.describe ArnoldCPM do
         end
     end
 
-    context "supports basic arithmetics between numbers by implementing the following functionality:" do
-        it "supports addition" do
-            expect_printed 22
+    # Arithmetics
 
-            ArnoldCPM.totally_recall do
-                its_showtime
-                    get_to_the_chopper _var
-                        here_is_my_invitation 20
-                        get_up 2
-                    enough_talk
+    it "supports addition" do
+        expect_printed 22
 
-                    talk_to_the_hand _var
-                you_have_been_terminated
-            end
+        ArnoldCPM.totally_recall do
+            its_showtime
+                get_to_the_chopper _var
+                    here_is_my_invitation 20
+                    get_up 2
+                enough_talk
+
+                talk_to_the_hand _var
+            you_have_been_terminated
         end
+    end
 
-        it "supports subtraction" do
-            expect_printed 18
+    it "supports subtraction" do
+        expect_printed 18
 
-            ArnoldCPM.totally_recall do
-                its_showtime
-                    get_to_the_chopper _var
-                        here_is_my_invitation 20
-                        get_down 2
-                    enough_talk
+        ArnoldCPM.totally_recall do
+            its_showtime
+                get_to_the_chopper _var
+                    here_is_my_invitation 20
+                    get_down 2
+                enough_talk
 
-                    talk_to_the_hand _var
-                you_have_been_terminated
-            end
+                talk_to_the_hand _var
+            you_have_been_terminated
         end
+    end
 
-        it "supports multiplication" do
-            expect_printed 40
+    it "supports multiplication" do
+        expect_printed 40
 
-            ArnoldCPM.totally_recall do
-                its_showtime
-                    get_to_the_chopper _var
-                        here_is_my_invitation 20
-                        youre_fired 2
-                    enough_talk
+        ArnoldCPM.totally_recall do
+            its_showtime
+                get_to_the_chopper _var
+                    here_is_my_invitation 20
+                    youre_fired 2
+                enough_talk
 
-                    talk_to_the_hand _var
-                you_have_been_terminated
-            end
+                talk_to_the_hand _var
+            you_have_been_terminated
         end
-        
-        it "supports division" do
-            expect_printed 10
+    end
+    
+    it "supports division" do
+        expect_printed 10
 
-            ArnoldCPM.totally_recall do
-                its_showtime
-                    get_to_the_chopper _var
-                        here_is_my_invitation 20
-                        he_had_to_split 2
-                    enough_talk
+        ArnoldCPM.totally_recall do
+            its_showtime
+                get_to_the_chopper _var
+                    here_is_my_invitation 20
+                    he_had_to_split 2
+                enough_talk
 
-                    talk_to_the_hand _var
-                you_have_been_terminated
-            end
+                talk_to_the_hand _var
+            you_have_been_terminated
         end
+    end
 
-        it "supports modulo division" do
-            expect_printed 1
+    it "supports modulo division" do
+        expect_printed 1
 
-            ArnoldCPM.totally_recall do
-                its_showtime
-                    get_to_the_chopper _var
-                        here_is_my_invitation 21
-                        i_let_him_go 2
-                    enough_talk
+        ArnoldCPM.totally_recall do
+            its_showtime
+                get_to_the_chopper _var
+                    here_is_my_invitation 21
+                    i_let_him_go 2
+                enough_talk
 
-                    talk_to_the_hand _var
-                you_have_been_terminated
-            end
+                talk_to_the_hand _var
+            you_have_been_terminated
         end
     end
 
@@ -139,81 +139,84 @@ RSpec.describe ArnoldCPM do
         end 
     end 
 
-    context "supports logical expressions between numbers by implementing the following functionality:" do
-        it "has two logical constants for true and false" do
-            expect_printed 0, 1
+    # Logical operations
+    it "has two logical constants for true and false" do
+        expect_printed 0, 1
 
-            ArnoldCPM.totally_recall do
-                its_showtime
-                    talk_to_the_hand i_lied
-                    talk_to_the_hand no_problemo
-                you_have_been_terminated
-            end 
-        end
-
-        it "supports logical OR" do
-            expect_printed 1, 0
-
-            ArnoldCPM.totally_recall do
-                its_showtime
-                    get_to_the_chopper _result_1
-                        here_is_my_invitation 1
-                        consider_that_a_divorce i_lied
-                    enough_talk
-
-                    get_to_the_chopper _result_2
-                        here_is_my_invitation 0
-                        consider_that_a_divorce i_lied 
-                    enough_talk
-
-                    talk_to_the_hand _result_1
-                    talk_to_the_hand _result_2
-                you_have_been_terminated
-            end 
-        end
-
-        it "supports logical AND" do
-            expect_printed 1, 0
-
-            ArnoldCPM.totally_recall do
-                its_showtime
-                    get_to_the_chopper _result_1
-                        here_is_my_invitation 1
-                        knock_knock no_problemo
-                    enough_talk
-
-                    get_to_the_chopper _result_2
-                        here_is_my_invitation 0
-                        knock_knock no_problemo 
-                    enough_talk
-
-                    talk_to_the_hand _result_1
-                    talk_to_the_hand _result_2
-                you_have_been_terminated
-            end 
-        end
-
-        it "supports comparison operators" do
-            expect_printed 1, 1
-
-            ArnoldCPM.totally_recall do
-                its_showtime
-                    get_to_the_chopper _result_1
-                        here_is_my_invitation 2
-                        let_off_some_steam_bennet 1
-                    enough_talk
-
-                    get_to_the_chopper _result_2
-                        here_is_my_invitation 4
-                        you_are_not_you_you_are_me 4 
-                    enough_talk
-
-                    talk_to_the_hand _result_1
-                    talk_to_the_hand _result_2
-                you_have_been_terminated
-            end  
-        end
+        ArnoldCPM.totally_recall do
+            its_showtime
+                talk_to_the_hand i_lied
+                talk_to_the_hand no_problemo
+            you_have_been_terminated
+        end 
     end
+
+    it "can evaluate logical OR" do
+        expect_printed 1, 0
+
+        ArnoldCPM.totally_recall do
+            its_showtime
+                get_to_the_chopper _result_1
+                    here_is_my_invitation 1
+                    consider_that_a_divorce i_lied
+                enough_talk
+
+                get_to_the_chopper _result_2
+                    here_is_my_invitation 0
+                    consider_that_a_divorce i_lied 
+                enough_talk
+
+                talk_to_the_hand _result_1
+                talk_to_the_hand _result_2
+            you_have_been_terminated
+        end 
+    end
+
+    it "can evaluate logical AND" do
+        expect_printed 1, 0
+
+        ArnoldCPM.totally_recall do
+            its_showtime
+                get_to_the_chopper _result_1
+                    here_is_my_invitation 1
+                    knock_knock no_problemo
+                enough_talk
+
+                get_to_the_chopper _result_2
+                    here_is_my_invitation 0
+                    knock_knock no_problemo 
+                enough_talk
+
+                talk_to_the_hand _result_1
+                talk_to_the_hand _result_2
+            you_have_been_terminated
+        end 
+    end
+
+    # Comparison
+
+    it "supports comparison operators" do
+        expect_printed 1, 1
+
+        ArnoldCPM.totally_recall do
+            its_showtime
+                get_to_the_chopper _result_1
+                    here_is_my_invitation 2
+                    let_off_some_steam_bennet 1
+                enough_talk
+
+                get_to_the_chopper _result_2
+                    here_is_my_invitation 4
+                    you_are_not_you_you_are_me 4 
+                enough_talk
+
+                talk_to_the_hand _result_1
+                talk_to_the_hand _result_2
+            you_have_been_terminated
+        end  
+    end
+
+    # Conditionals
 
     it "can evaluate if conditional statements" do
         expect_printed 1
@@ -280,6 +283,8 @@ RSpec.describe ArnoldCPM do
             you_have_been_terminated
         end  
     end
+
+    # Function related
 
     it "can define void functions" do
         expect_printed 42
@@ -363,6 +368,98 @@ RSpec.describe ArnoldCPM do
 
             its_showtime
                 do_it_now _print_to_limit, 1, 5
+            you_have_been_terminated
+        end
+    end
+
+    it "can evaluate function identity in equality comparison" do
+        expect_printed 1, 0
+        
+        ArnoldCPM.totally_recall do
+            listen_to_me_very_carefully _func
+            i_need_your_clothes_your_boots_and_your_motorcycle _val
+                talk_to_the_hand _val
+            hasta_la_vista_baby
+
+            listen_to_me_very_carefully _other
+            i_need_your_clothes_your_boots_and_your_motorcycle _val
+                talk_to_the_hand _val
+            hasta_la_vista_baby
+
+            its_showtime
+                get_to_the_chopper _func_copy
+                    here_is_my_invitation _func
+                enough_talk
+                get_to_the_chopper _another_func_copy
+                    here_is_my_invitation _func
+                enough_talk
+                get_to_the_chopper _other_copy
+                    here_is_my_invitation _other
+                enough_talk
+
+                get_to_the_chopper _same_functions
+                    here_is_my_invitation _func_copy
+                    you_are_not_you_you_are_me _another_func_copy
+                enough_talk
+                get_to_the_chopper _different_functions
+                    here_is_my_invitation _func_copy
+                    you_are_not_you_you_are_me _other_copy 
+                enough_talk
+
+                talk_to_the_hand _same_functions
+                talk_to_the_hand _different_functions
+            you_have_been_terminated
+        end
+    end
+
+    it "can define invested functions" do
+        expect_printed 42, 12
+
+        ArnoldCPM.totally_recall do
+            listen_to_me_very_carefully _outer
+            give_these_people_air
+                listen_to_me_very_carefully _inner
+                i_need_your_clothes_your_boots_and_your_motorcycle _val
+                    talk_to_the_hand _val
+                hasta_la_vista_baby
+                
+                ill_be_back _inner
+            hasta_la_vista_baby
+
+            its_showtime
+                get_your_ass_to_mars _func
+                do_it_now _outer
+
+                do_it_now _func, 42
+                do_it_now _func, 12
+            you_have_been_terminated
+        end
+    end
+
+    it "defines new instances of invested functions every time the outer function is called" do
+        expect_printed 0
+
+        ArnoldCPM.totally_recall do
+            listen_to_me_very_carefully _outer
+            give_these_people_air
+                listen_to_me_very_carefully _inner
+                hasta_la_vista_baby
+
+                ill_be_back _inner
+            hasta_la_vista_baby
+
+            its_showtime
+                get_your_ass_to_mars _first_call
+                do_it_now _outer
+                get_your_ass_to_mars _second_call
+                do_it_now _outer
+
+                get_to_the_chopper _identical_functions 
+                    here_is_my_invitation _first_call
+                    you_are_not_you_you_are_me _second_call
+                enough_talk
+
+                talk_to_the_hand _identical_functions
             you_have_been_terminated
         end
     end
