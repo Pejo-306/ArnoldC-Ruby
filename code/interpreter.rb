@@ -83,13 +83,16 @@ class ArnoldCConditional
 end
 
 class ArnoldCFunctionTemplate
-    attr_reader :name
-    attr_accessor :body, :parameters, :return
+    attr_reader :name, :defined_within
+    attr_accessor :body, :parameters, :inner_functions, :templates, :return
 
-    def initialize(name)
+    def initialize(name, defined_within)
         @name = name
+        @defined_within = defined_within  # the template this template is defined within
         @body = []
         @parameters = []  # set only when the function is declared
+        @templates = {}
+        @inner_functions = {} 
         @return = false
     end
     
@@ -102,18 +105,19 @@ class ArnoldCFunctionTemplate
 end
 
 class ArnoldCFunction
-    attr_reader :name, :parameter_values
+    attr_reader :name, :parameter_values, :defined_within
     attr_writer :return
     attr_accessor :body, :parameters, :closure, :inner_functions, :templates
 
     def initialize(template)
         @name = template.name 
+        @defined_within = template.defined_within
         @body = template.body
         @parameters = template.parameters  # set only when the function is declared
         @parameter_values = {}  # altered everytime the function is called
         @closure = {}
-        @inner_functions = {} 
-        @templates = {}
+        @inner_functions = template.inner_functions 
+        @templates = template.templates
         @return = template.return 
         @should_stop = false
     end
@@ -161,7 +165,6 @@ module ArnoldCPM
 
         def its_showtime
             # initialize a statement which defines the main function via a template
-            #puts @@current_scope
             statement = ArnoldCStatement.new(__method__, program)
             statement.code do
                 template = program.templates[:__main__] 
@@ -170,7 +173,7 @@ module ArnoldCPM
             @@current_scope.last.body.push statement 
             
             # create a function template
-            @@current_scope.push ArnoldCFunctionTemplate.new(:__main__)
+            @@current_scope.push ArnoldCFunctionTemplate.new(:__main__, program)
         end
 
         def you_have_been_terminated
@@ -182,15 +185,15 @@ module ArnoldCPM
 
         def listen_to_me_very_carefully(name)
             # initialize a statement which defines a function via a template
-            statement = ArnoldCStatement.new(__method__, program, name)
+            statement = ArnoldCStatement.new(__method__, get_template(@@current_scope), name)
             statement.code do
-                template = program.templates[name]
-                program.inner_functions[name] = ArnoldCFunction.new(template)
+                template = statement.template.templates[name]
+                statement.template.inner_functions[name] = ArnoldCFunction.new(template)
             end
             @@current_scope.last.body.push statement 
             
             # create a function template
-            @@current_scope.push ArnoldCFunctionTemplate.new(name)
+            @@current_scope.push ArnoldCFunctionTemplate.new(name, get_template(@@current_scope))
         end
 
         def i_need_your_clothes_your_boots_and_your_motorcycle(name)
@@ -264,13 +267,13 @@ module ArnoldCPM
         end
 
         @@statements << def enough_talk(statement:)
-            func = get_function(statement.template)
+            func = search_for_function(statement.template, statement.template.name)
             func.closure[@@buffer.name] = @@buffer
             @@buffer = nil
         end
 
         @@statements << def ill_be_back(object=nil, statement:)
-            func = get_function(statement.template)
+            func = search_for_function(statement.template, statement.template.name)
             func.stop_execution
             if func.should_return?
                 func.return = interpret_expression(object, statement.template)
@@ -285,11 +288,11 @@ module ArnoldCPM
         @@statements << def do_it_now(name, *args, statement:)
             # func -> the function where the do_it_now statement is called
             # called_func -> the invocated function in func via the statement do_it_now
-            func = get_function(statement.template)
+            func = search_for_function(statement.template, statement.template.name)
             if func.closure.has_key? name  # function is stored in a variable
                 called_func = func.closure[name].value
             else  # name refers to a function, not a variable that contains a function
-                called_func = program.inner_functions[name]
+                called_func = search_for_function(statement.template, name) 
             end
 
             # store the variable, declared in get_your_ass_to_mars for later
@@ -384,10 +387,11 @@ module ArnoldCPM
 
         def interpret_expression(object, template) 
             if object.is_a? Symbol  # i.e. object is a variable or function name
-                func = get_function(template)
-                if program.inner_functions.has_key? object
+                func = search_for_function(template, template.name)
+                #func.inner_functions.has_key? object
+                if search_for_function(template, object)
                     # first, check if the name refers to a function
-                    program.inner_functions[object]
+                    search_for_function(template, object)
                 elsif func.parameters.include? object
                     # next, check if the variable requested
                     # is in the function's parameters
@@ -406,11 +410,15 @@ module ArnoldCPM
             func_index = scope.reverse.find_index do |expression|
                 expression.is_a? ArnoldCFunctionTemplate
             end
-            scope.reverse[func_index]
+            unless func_index then program else scope.reverse[func_index] end
         end
 
-        def get_function(template)
-            program.inner_functions[template.name]
+        def search_for_function(template, name)
+            if template.defined_within.inner_functions.has_key? name
+                template.defined_within.inner_functions[name]
+            else
+                template.inner_functions[name]
+            end
         end
 
         def program
@@ -418,12 +426,12 @@ module ArnoldCPM
         end
 
         def initialize_program
-            program_template = ArnoldCFunctionTemplate.new(:__program__)
+            program_template = ArnoldCFunctionTemplate.new(:__program__, nil)
             @@current_scope.push ArnoldCFunction.new(program_template)
         end
 
         def execute_program
-            program.execute  # create functions
+            program.execute  # create top-level functions
             program.inner_functions[:__main__].execute  # execute main function
         end
 
