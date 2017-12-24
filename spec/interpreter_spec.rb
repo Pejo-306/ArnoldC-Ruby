@@ -1,6 +1,5 @@
 RSpec.describe ArnoldCPM do
     before(:all) { ArnoldCPM.printer = Kernel }
-    after(:each) { ArnoldCPM.send :reset }
 
     def expect_printed(*values)
         values.each do |value|
@@ -432,34 +431,6 @@ RSpec.describe ArnoldCPM do
 
                 do_it_now _func, 42
                 do_it_now _func, 12
-            you_have_been_terminated
-        end
-    end
-
-    it "defines new instances of invested functions every time the outer function is called" do
-        expect_printed 0
-
-        ArnoldCPM.totally_recall do
-            listen_to_me_very_carefully _outer
-            give_these_people_air
-                listen_to_me_very_carefully _inner
-                hasta_la_vista_baby
-
-                ill_be_back _inner
-            hasta_la_vista_baby
-
-            its_showtime
-                get_your_ass_to_mars _first_call
-                do_it_now _outer
-                get_your_ass_to_mars _second_call
-                do_it_now _outer
-
-                get_to_the_chopper _identical_functions 
-                    here_is_my_invitation _first_call
-                    you_are_not_you_you_are_me _second_call
-                enough_talk
-
-                talk_to_the_hand _identical_functions
             you_have_been_terminated
         end
     end

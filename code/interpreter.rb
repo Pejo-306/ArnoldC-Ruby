@@ -8,7 +8,7 @@ class ArnoldCVariable
     end
 
     def to_s
-        @name
+        "ArnoldCVariable: #{@name} => #{@value}"
     end
 end
 
@@ -66,7 +66,9 @@ class ArnoldCConditional
 
     def evaluate
         # transform @condition into a ruby bool
-        condition = ArnoldCPM.send :interpret_expression, @condition, @template
+        func_stack = ArnoldCPM::Interpreter.class_variable_get(:@@function_stack)
+        func = func_stack.search_for_function(@template.name)
+        condition = ArnoldCPM.send :interpret_expression, @condition, func 
         condition = ArnoldCPM.send :from_arnoldc_bool, condition
 
         # evaluate condition
@@ -84,7 +86,7 @@ end
 
 class ArnoldCFunctionTemplate
     attr_reader :name, :defined_within
-    attr_accessor :body, :parameters, :inner_functions, :templates, :return
+    attr_accessor :body, :parameters, :templates, :return
 
     def initialize(name, defined_within)
         @name = name
@@ -92,7 +94,6 @@ class ArnoldCFunctionTemplate
         @body = []
         @parameters = []  # set only when the function is declared
         @templates = {}
-        @inner_functions = {} 
         @return = false
     end
     
@@ -105,20 +106,20 @@ class ArnoldCFunctionTemplate
 end
 
 class ArnoldCFunction
-    attr_reader :name, :parameter_values, :defined_within
+    attr_reader :template, :name, :parameter_values, :defined_within
     attr_writer :return
-    attr_accessor :body, :parameters, :closure, :inner_functions, :templates
+    attr_accessor :body, :parameters, :closure, :templates 
 
     def initialize(template)
+        @template = template
         @name = template.name 
         @defined_within = template.defined_within
         @body = template.body
         @parameters = template.parameters  # set only when the function is declared
         @parameter_values = {}  # altered everytime the function is called
         @closure = {}
-        @inner_functions = template.inner_functions 
         @templates = template.templates
-        @return = template.return 
+        @return = template.return
         @should_stop = false
     end
     
@@ -138,7 +139,9 @@ class ArnoldCFunction
         # @parameter_values is a hash whose keys are parameter names
         # and whose parameter values are the values passed when calling
         # the function
-        @parameter_values = @parameters.zip(values).to_h
+        @parameter_values = @parameters.map.with_index do |param_name, index|
+            [param_name, ArnoldCVariable.new(param_name, values[index])]
+        end.to_h
         @body.each do |expression|
             break if @should_stop
             expression.evaluate
@@ -155,10 +158,50 @@ class ArnoldCFunction
     end
 end
 
+class ArnoldCFunctionStack
+    attr_reader :stack
+
+    def initialize
+        @stack = []
+    end
+
+    def push(func)
+        @stack.push func
+    end
+
+    def pop
+        @stack.pop
+    end
+
+    def main
+        search_for_function(:__main__)
+    end
+
+    def search_for_template(template, name)
+        if template.defined_within.templates.has_key? name
+            template.defined_within.templates[name]
+        else
+            template.templates[name]
+        end
+    end
+
+    def search_for_function(name)
+        index = @stack.reverse.find_index do |func|
+            func.name == name
+        end
+        @stack[@stack.length-1-index]
+    end
+
+    def list
+        @stack.each { |func| puts func }
+    end
+end
+
 module ArnoldCPM
     module Interpreter
-        @@current_scope = []
         @@statements = []
+        @@current_scope = []
+        @@function_stack = ArnoldCFunctionStack.new 
         @@buffer = nil  # used for temporary storage of variables
 
         # Function related expressions
@@ -168,11 +211,12 @@ module ArnoldCPM
             statement = ArnoldCStatement.new(__method__, program)
             statement.code do
                 template = program.templates[:__main__] 
-                program.inner_functions[:__main__] = ArnoldCFunction.new(template) 
+                main = ArnoldCFunction.new(template)
+                @@function_stack.push main 
             end
             @@current_scope.last.body.push statement 
             
-            # create a function template
+            # create the main function's template
             @@current_scope.push ArnoldCFunctionTemplate.new(:__main__, program)
         end
 
@@ -184,14 +228,6 @@ module ArnoldCPM
         end
 
         def listen_to_me_very_carefully(name)
-            # initialize a statement which defines a function via a template
-            statement = ArnoldCStatement.new(__method__, get_template(@@current_scope), name)
-            statement.code do
-                template = statement.template.templates[name]
-                statement.template.inner_functions[name] = ArnoldCFunction.new(template)
-            end
-            @@current_scope.last.body.push statement 
-            
             # create a function template
             @@current_scope.push ArnoldCFunctionTemplate.new(name, get_template(@@current_scope))
         end
@@ -254,86 +290,93 @@ module ArnoldCPM
         end
 
         @@statements << def talk_to_the_hand(object, statement:)
-            printer.print interpret_expression(object, statement.template), "\n"
+            func = @@function_stack.search_for_function(statement.template.name)
+            printer.print interpret_expression(object, func), "\n"
         end
 
         @@statements << def get_to_the_chopper(name, statement:)
-            variable = ArnoldCVariable.new(name)
-            @@buffer = variable
+            @@buffer = ArnoldCVariable.new(name)
         end
 
         @@statements << def here_is_my_invitation(object, statement:)
-            @@buffer.value = interpret_expression(object, statement.template)
+            func = @@function_stack.search_for_function(statement.template.name)
+            @@buffer.value = interpret_expression(object, func)
         end
 
         @@statements << def enough_talk(statement:)
-            func = search_for_function(statement.template, statement.template.name)
+            func = @@function_stack.search_for_function(statement.template.name)
             func.closure[@@buffer.name] = @@buffer
             @@buffer = nil
         end
 
-        @@statements << def ill_be_back(object=nil, statement:)
-            func = search_for_function(statement.template, statement.template.name)
+        @@statements << def ill_be_back(object=0, statement:)
+            func = @@function_stack.search_for_function(statement.template.name)
             func.stop_execution
             if func.should_return?
-                func.return = interpret_expression(object, statement.template)
+                func.return = interpret_expression(object, func)
             end
         end
 
         @@statements << def get_your_ass_to_mars(name, statement:)
-            variable = ArnoldCVariable.new(name)
-            @@buffer = variable
+            @@buffer = ArnoldCVariable.new(name)
         end
 
         @@statements << def do_it_now(name, *args, statement:)
-            # func -> the function where the do_it_now statement is called
-            # called_func -> the invocated function in func via the statement do_it_now
-            func = search_for_function(statement.template, statement.template.name)
-            if func.closure.has_key? name  # function is stored in a variable
-                called_func = func.closure[name].value
-            else  # name refers to a function, not a variable that contains a function
-                called_func = search_for_function(statement.template, name) 
-            end
+            # invoker -> the function where the do_it_now statement is called
+            # called_func -> the invoked function in func via the statement do_it_now
+            invoker = @@function_stack.search_for_function(statement.template.name)
+
+            # create the called_func via its template
+            called_template = interpret_expression(name, invoker)
+            called_func = ArnoldCFunction.new(called_template)
+            @@function_stack.push called_func
 
             # store the variable, declared in get_your_ass_to_mars for later
             result_var = @@buffer if called_func.should_return?
-            func_returns = if called_func.should_return? then true else false end
 
             # call the function, identified via name
             values = args.map do |object|
-                interpret_expression(object, statement.template)
+                interpret_expression(object, invoker)
             end
             called_func.execute(*values) 
 
-            # save the result of the function execution to a variable
             # if the function is non-void
-            if func_returns
+            # save the result of the function execution to a variable
+            if called_func.should_return?
                 result_var.value = called_func.return_value
-                func.closure[result_var.name] = result_var 
+                invoker.closure[result_var.name] = result_var
                 @@buffer = nil
             end
+
+            # remove the function from the function stack
+            @@function_stack.pop
         end
 
         # Arithmetics
 
         @@statements << def get_up(object, statement:)
-            @@buffer.value += interpret_expression(object, statement.template)
+            func = @@function_stack.search_for_function(statement.template.name)
+            @@buffer.value += interpret_expression(object, func)
         end
 
         @@statements << def get_down(object, statement:)
-            @@buffer.value -= interpret_expression(object, statement.template)
+            func = @@function_stack.search_for_function(statement.template.name)
+            @@buffer.value -= interpret_expression(object, func)
         end
 
         @@statements << def youre_fired(object, statement:)
-            @@buffer.value *= interpret_expression(object, statement.template)
+            func = @@function_stack.search_for_function(statement.template.name)
+            @@buffer.value *= interpret_expression(object, func)
         end
 
         @@statements << def he_had_to_split(object, statement:)
-            @@buffer.value /= interpret_expression(object, statement.template)
+            func = @@function_stack.search_for_function(statement.template.name)
+            @@buffer.value /= interpret_expression(object, func)
         end
 
         @@statements << def i_let_him_go(object, statement:)
-            @@buffer.value %= interpret_expression(object, statement.template)
+            func = @@function_stack.search_for_function(statement.template.name)
+            @@buffer.value %= interpret_expression(object, func)
         end
 
         # Logical constants
@@ -344,18 +387,24 @@ module ArnoldCPM
         # Logical operations
 
         @@statements << def consider_that_a_divorce(object, statement:)
-            if from_arnoldc_bool(@@buffer.value) || 
-                from_arnoldc_bool(interpret_expression(object, statement.template))
-                @@buffer.value = no_problemo
+            func = @@function_stack.search_for_function(statement.template.name)
+            first = @@buffer.value
+            second = interpret_expression(object, func)
+            condition = from_arnoldc_bool(first) || from_arnoldc_bool(second)
+            if condition
+                @@buffer.value = condition == from_arnoldc_bool(first) ? first : second
             else
                 @@buffer.value = i_lied
             end
         end
 
         @@statements << def knock_knock(object, statement:)
-            if from_arnoldc_bool(@@buffer.value) && 
-                from_arnoldc_bool(interpret_expression(object, statement.template))
-                @@buffer.value = no_problemo
+            func = @@function_stack.search_for_function(statement.template.name)
+            first = @@buffer.value
+            second = interpret_expression(object, func)
+            condition = from_arnoldc_bool(first) && from_arnoldc_bool(second)
+            if condition  
+                @@buffer.value = condition == from_arnoldc_bool(second) ? second : first 
             else
                 @@buffer.value = i_lied
             end
@@ -364,7 +413,8 @@ module ArnoldCPM
         # Comparisons 
 
         @@statements << def let_off_some_steam_bennet(object, statement:)
-            if @@buffer.value > interpret_expression(object, statement.template)
+            func = @@function_stack.search_for_function(statement.template.name)
+            if @@buffer.value > interpret_expression(object, func)
                 @@buffer.value = no_problemo
             else
                 @@buffer.value = i_lied
@@ -372,7 +422,8 @@ module ArnoldCPM
         end
 
         @@statements << def you_are_not_you_you_are_me(object, statement:)
-            if @@buffer.value == interpret_expression(object, statement.template)
+            func = @@function_stack.search_for_function(statement.template.name)
+            if @@buffer.value == interpret_expression(object, func)
                 @@buffer.value = no_problemo
             else
                 @@buffer.value = i_lied
@@ -385,17 +436,16 @@ module ArnoldCPM
             if arnoldc_bool == 0 then false else true end
         end
 
-        def interpret_expression(object, template) 
+        def interpret_expression(object, func) 
             if object.is_a? Symbol  # i.e. object is a variable or function name
-                func = search_for_function(template, template.name)
-                #func.inner_functions.has_key? object
-                if search_for_function(template, object)
+                if @@function_stack.search_for_template(func.template, object)
                     # first, check if the name refers to a function
-                    search_for_function(template, object)
+                    # and return that function's template
+                    @@function_stack.search_for_template(func.template, object)
                 elsif func.parameters.include? object
                     # next, check if the variable requested
                     # is in the function's parameters
-                    func.parameter_values[object]
+                    func.parameter_values[object].value
                 else
                     # otherwise, the requested variable
                     # must be in the function's closure
@@ -407,18 +457,11 @@ module ArnoldCPM
         end
 
         def get_template(scope)
+            # utilized during ArnoldC code interpretation
             func_index = scope.reverse.find_index do |expression|
                 expression.is_a? ArnoldCFunctionTemplate
             end
             unless func_index then program else scope.reverse[func_index] end
-        end
-
-        def search_for_function(template, name)
-            if template.defined_within.inner_functions.has_key? name
-                template.defined_within.inner_functions[name]
-            else
-                template.inner_functions[name]
-            end
         end
 
         def program
@@ -427,22 +470,24 @@ module ArnoldCPM
 
         def initialize_program
             program_template = ArnoldCFunctionTemplate.new(:__program__, nil)
-            @@current_scope.push ArnoldCFunction.new(program_template)
+            program_func = ArnoldCFunction.new(program_template)
+            @@current_scope.push program_func 
+            @@function_stack.push program_func 
         end
 
         def execute_program
             program.execute  # create top-level functions
-            program.inner_functions[:__main__].execute  # execute main function
+            @@function_stack.main.execute  # execute main function
         end
 
         def reset_interpreter
             @@current_scope = []
+            @@function_stack = ArnoldCFunctionStack.new 
             @@buffer = nil
         end
     end
     
     extend Interpreter
-    private_constant :Interpreter
 
     class << self
         def method_missing(name, *args, &block)
@@ -463,6 +508,7 @@ module ArnoldCPM
             initialize_program
             instance_eval &code
             execute_program
+            reset
         end
 
         private def reset
