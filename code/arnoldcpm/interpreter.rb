@@ -1,4 +1,5 @@
 require_relative '../constructs'
+require_relative '../errors'
 
 module ArnoldCPM
   module Interpreter
@@ -29,6 +30,7 @@ module ArnoldCPM
             bound_method.unbind
           end
           # Append the new statement to the innermost function template's body
+          raise OutOfBoundsError if @@current_scope.last.equal? program
           @@current_scope.last.body.push(statement)
         end
       end
@@ -108,6 +110,8 @@ module ArnoldCPM
     end
 
     @@statements << def enough_talk(statement:)
+      raise UninitializedVariableError, @@buffer.name unless @@buffer.value
+
       func = @@function_stack.search_for_function(statement.template.name)
       func.closure[@@buffer.name] = @@buffer
       @@buffer = nil
@@ -131,7 +135,11 @@ module ArnoldCPM
       invoker = @@function_stack.search_for_function(statement.template.name)
 
       # Create the invoked function via its template
-      called_template = interpret_expression(name, invoker)
+      begin
+        called_template = interpret_expression(name, invoker)
+      rescue UndeclaredVariableError
+        raise UndeclaredFunctionError, name
+      end
       called_func = ArnoldCFunction.new(called_template)
       @@function_stack.push(called_func)
 
@@ -145,7 +153,12 @@ module ArnoldCPM
       # If the function is non-void
       # save the result of the function execution to a variable
       if called_func.should_return?
-        result_var.value = called_func.return_value
+        value = called_func.return_value
+        unless value.is_a?(Integer) || value.is_a?(ArnoldCFunctionTemplate)
+          raise FunctionDoesNotReturnError, name 
+        end
+
+        result_var.value = value 
         invoker.closure[result_var.name] = result_var
         @@buffer = nil
       end
@@ -154,26 +167,36 @@ module ArnoldCPM
     end
 
     @@statements << def get_up(object, statement:)
+      raise UninitializedVariableError, @@buffer.name unless @@buffer.value
+
       func = @@function_stack.search_for_function(statement.template.name)
       @@buffer.value += interpret_expression(object, func)
     end
 
     @@statements << def get_down(object, statement:)
+      raise UninitializedVariableError, @@buffer.name unless @@buffer.value
+
       func = @@function_stack.search_for_function(statement.template.name)
       @@buffer.value -= interpret_expression(object, func)
     end
 
     @@statements << def youre_fired(object, statement:)
+      raise UninitializedVariableError, @@buffer.name unless @@buffer.value
+
       func = @@function_stack.search_for_function(statement.template.name)
       @@buffer.value *= interpret_expression(object, func)
     end
 
     @@statements << def he_had_to_split(object, statement:)
+      raise UninitializedVariableError, @@buffer.name unless @@buffer.value
+
       func = @@function_stack.search_for_function(statement.template.name)
       @@buffer.value /= interpret_expression(object, func)
     end
 
     @@statements << def i_let_him_go(object, statement:)
+      raise UninitializedVariableError, @@buffer.name unless @@buffer.value
+
       func = @@function_stack.search_for_function(statement.template.name)
       @@buffer.value %= interpret_expression(object, func)
     end
@@ -187,6 +210,8 @@ module ArnoldCPM
     end
 
     @@statements << def consider_that_a_divorce(object, statement:)
+      raise UninitializedVariableError, @@buffer.name unless @@buffer.value
+
       func = @@function_stack.search_for_function(statement.template.name)
       first = @@buffer.value
       second = interpret_expression(object, func)
@@ -199,6 +224,8 @@ module ArnoldCPM
     end
 
     @@statements << def knock_knock(object, statement:)
+      raise UninitializedVariableError, @@buffer.name unless @@buffer.value
+
       func = @@function_stack.search_for_function(statement.template.name)
       first = @@buffer.value
       second = interpret_expression(object, func)
@@ -211,6 +238,8 @@ module ArnoldCPM
     end
 
     @@statements << def let_off_some_steam_bennet(object, statement:)
+      raise UninitializedVariableError, @@buffer.name unless @@buffer.value
+
       func = @@function_stack.search_for_function(statement.template.name)
       if @@buffer.value > interpret_expression(object, func)
         @@buffer.value = no_problemo
@@ -220,6 +249,8 @@ module ArnoldCPM
     end
 
     @@statements << def you_are_not_you_you_are_me(object, statement:)
+      raise UninitializedVariableError, @@buffer.name unless @@buffer.value
+
       func = @@function_stack.search_for_function(statement.template.name)
       if @@buffer.value == interpret_expression(object, func)
         @@buffer.value = no_problemo
@@ -235,26 +266,35 @@ module ArnoldCPM
     end
 
     def interpret_expression(object, func) 
-      if object.is_a? Symbol # i.e. object is a variable or function name
+      value =
+      if object.is_a?(Symbol) # i.e. object is a variable or function name
         if @@function_stack.search_for_template(func.template, object)
           # The name refers to a function template
           @@function_stack.search_for_template(func.template, object)
         elsif func.parameters.include? object
           # The variable requested is in the function's parameters
           func.parameter_values[object].value
-        else
+        elsif func.closure.key? object
           # The requested variable is in the function's closure
           func.closure[object].value    
+        else
+          # The reference points to an undeclared variable
+          raise UndeclaredVariableError, object
         end
       else
-        object # Object is a literal value
+        object # object is a literal value
       end
+
+      unless value.is_a?(Integer) || value.is_a?(ArnoldCFunctionTemplate)
+        raise UninitializedVariableError, object
+      end
+      value
     end
 
     def get_template(scope)
       # Utilized during ArnoldC code interpretation
       func_index = scope.reverse.find_index do |expression|
-        expression.is_a? ArnoldCFunctionTemplate
+        expression.is_a?(ArnoldCFunctionTemplate)
       end
       func_index ? scope[-(func_index+1)] : program
     end
@@ -271,6 +311,9 @@ module ArnoldCPM
 
     def execute_program
       program.execute # Create top-level functions
+      unless program.templates.key? :__main__
+        raise UndeclaredFunctionError, :__main__
+      end
       @@function_stack.main.execute # Execute main function
     end
 
@@ -281,3 +324,4 @@ module ArnoldCPM
     end
   end
 end
+

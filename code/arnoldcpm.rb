@@ -22,6 +22,7 @@ module ArnoldCPM
       initialize_program
       instance_eval(&code)
       execute_program
+    ensure
       reset
     end
 
