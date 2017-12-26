@@ -122,7 +122,7 @@ This implementation supports only the logical operations **AND** and **OR**.
 
 ```ruby
 knock_knock 1  # logical AND
-consider_that_a_divorce  # logical OR
+consider_that_a_divorce 0  # logical OR
 ```
 
 **AND** returns the operand which evaluates to untruth (if both operands
@@ -352,6 +352,8 @@ you_have_been_terminated
 ### Recurssion
 The ArnoldC Interpreter also supports recurssion which is the only way for
 cycling in ArnoldC.
+
+Example of a program which prints all numbers from \_number to \_limit:
 
 ```ruby
 listen_to_me_very_carefully _print_to_limit
