@@ -23,10 +23,6 @@ module ArnoldCPM
       instance_eval(&code)
       execute_program
     ensure
-      reset
-    end
-
-    private def reset
       reset_interpreter
     end
   end
